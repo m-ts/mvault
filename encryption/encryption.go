@@ -5,67 +5,71 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"io"
-	"log"
 	"math"
+	"mvault/credentials"
 
 	"golang.org/x/crypto/scrypt"
 )
 
-func Encrypt(data []byte, pwd string, pin string) ([]byte, []byte) {
-	plaintext := data
-	passwd := []byte(pwd)
-	salt := []byte(pin)
+/*Credentials is used to store password, salt for encryption*/
+type Credentials = credentials.Credentials
+
+func createGCM(creds Credentials) (cipher.AEAD, error) {
+	passwd := []byte(creds.Password)
+	salt := []byte(creds.Salt)
 	N := int(math.Pow(2, 20))
 	r := 8
 	p := 1
-	key, err := scrypt.Key(passwd, salt, N, r, p, 32)
+	key, generationErr := scrypt.Key(passwd, salt, N, r, p, 32)
 	// key, err := scrypt.Key(passwd, salt, 32768, 8, 1, 32)
-	if err != nil {
-		log.Fatal(err)
+	if generationErr != nil {
+		return nil, generationErr
 	}
 
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		log.Fatal(err)
+	block, cipherErr := aes.NewCipher(key)
+	if cipherErr != nil {
+		return nil, cipherErr
+	}
+
+	aesgcm, gcmErr := cipher.NewGCM(block)
+	if gcmErr != nil {
+		return nil, gcmErr
+	}
+
+	return aesgcm, nil
+}
+
+/*Encrypt given plaintext with credentials, returns nonce+ciphertext or error*/
+func Encrypt(data []byte, creds Credentials) ([]byte, error) {
+	aesgcm, gcmErr := createGCM(creds)
+	if gcmErr != nil {
+		return []byte(""), gcmErr
 	}
 
 	nonce := make([]byte, 12)
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		log.Fatal(err)
+	_, nonceErr := io.ReadFull(rand.Reader, nonce)
+	if nonceErr != nil {
+		return []byte(""), nonceErr
 	}
 
-	aesgcm, err := cipher.NewGCM(block)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	ciphertext := aesgcm.Seal(nil, nonce, plaintext, nil)
-	return ciphertext, nonce
+	ciphertext := aesgcm.Seal(nil, nonce, data, nil)
+	ciphertext = append(nonce, ciphertext...)
+	return ciphertext, nil
 }
 
-func Decrypt(ciphertext []byte, nonce []byte, pwd string, pin string) (string, error) {
-	passwd := []byte(pwd)
-	salt := []byte(pin)
-	N := int(math.Pow(2, 20))
-	r := 8
-	p := 1
-	key, err := scrypt.Key(passwd, salt, N, r, p, 32)
-	if err != nil {
-		return "", err
+/*Decrypt given data (nonce+ciphertext) with credentials, returns plaintext or error*/
+func Decrypt(data []byte, creds Credentials) ([]byte, error) {
+	nonce, ciphertext := data[:12], data[12:]
+
+	aesgcm, gcmErr := createGCM(creds)
+	if gcmErr != nil {
+		return []byte(""), gcmErr
 	}
 
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return "", err
+	plaintext, decryptErr := aesgcm.Open(nil, nonce, ciphertext, nil)
+	if decryptErr != nil {
+		return []byte(""), decryptErr
 	}
 
-	aesgcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return "", err
-	}
-	plaintext, err := aesgcm.Open(nil, nonce, ciphertext, nil)
-	if err != nil {
-		return "", err
-	}
-	return string(plaintext), nil
+	return plaintext, nil
 }

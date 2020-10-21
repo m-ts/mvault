@@ -5,53 +5,77 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 )
 
+/*ReadFile performs checks and retrieves contents of file*/
 func ReadFile(path string) ([]byte, error) {
 	// Checking if file exists
-	_, err := os.Stat(path)
-	if err != nil {
-		if os.IsNotExist(err) {
+	_, statErr := os.Stat(path)
+	if statErr != nil {
+		if os.IsNotExist(statErr) {
 			return nil, errors.New("file does not exist")
 		}
-		return nil, err
+		return nil, statErr
 	}
-	// log.Println("File does exist. File information:")
-	// log.Println(fileInfo)
 
 	// test permissions
-	file, err := os.OpenFile(path, os.O_RDWR, 0666)
-	if err != nil {
-		if os.IsPermission(err) {
+	file, openErr := os.OpenFile(path, os.O_RDWR, 0666)
+	if openErr != nil {
+		if os.IsPermission(openErr) {
 			return nil, errors.New("write permission denied")
 		}
-		if os.IsPermission(err) {
+		if os.IsPermission(openErr) {
 			return nil, errors.New("read permission denied")
 		}
 		file.Close()
-		return nil, err
+		return nil, openErr
 	}
+
 	defer file.Close()
 
-	data, err := ioutil.ReadAll(file)
-	if err != nil {
-		return nil, err
+	data, readErr := ioutil.ReadAll(file)
+	if readErr != nil {
+		return nil, readErr
 	}
+
 	return data, nil
 }
 
+/*WriteFile saves data to the file*/
 func WriteFile(data []byte, path string) error {
-	newFile, err := os.Create(path)
-	if err != nil {
-		log.Fatal(err)
+	newFile, createErr := os.Create(path)
+	if createErr != nil {
+		log.Fatal(createErr)
 	}
 
-	_, err1 := newFile.Write(data)
-	if err1 != nil {
-		log.Fatal(err)
+	defer newFile.Close()
+
+	_, writeErr := newFile.Write(data)
+	if writeErr != nil {
+		log.Fatal(writeErr)
 	}
 
-	newFile.Close()
+	return nil
+}
+
+/*Replace updates contents of the file*/
+func Replace(path string, data []byte) error {
+	newpath := filepath.Dir(path) + "_" + filepath.Base(path)
+	writeErr := WriteFile(data, newpath)
+	if writeErr != nil {
+		return writeErr
+	}
+
+	removeErr := os.Remove(path)
+	if removeErr != nil {
+		return removeErr
+	}
+
+	renameErr := os.Rename(newpath, path)
+	if renameErr != nil {
+		return renameErr
+	}
 
 	return nil
 }
