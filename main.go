@@ -1,7 +1,5 @@
 package main
 
-// TODO: tests
-
 import (
 	"flag"
 	"math/rand"
