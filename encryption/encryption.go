@@ -4,6 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"errors"
 	"io"
 	"math"
 	"mvault/credentials"
@@ -68,7 +69,7 @@ func Decrypt(data []byte, creds Credentials) ([]byte, error) {
 
 	plaintext, decryptErr := aesgcm.Open(nil, nonce, ciphertext, nil)
 	if decryptErr != nil {
-		return []byte(""), decryptErr
+		return []byte(""), errors.New("Decrypt failed: wrong password")
 	}
 
 	return plaintext, nil

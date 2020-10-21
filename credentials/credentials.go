@@ -1,6 +1,6 @@
 package credentials
 
-// type `Credentials` stores password and salt for encryption
+/*Credentials stores password and salt for encryption*/
 type Credentials struct {
 	Password string `json:"password"`
 	Salt     string `json:"salt"`

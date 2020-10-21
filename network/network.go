@@ -7,7 +7,9 @@ import (
 	"net/http"
 )
 
-// Credentials is used to get user specific password, salt from server
+// TODO: sending user creds to get encryption creds
+
+/*Credentials is used to get user specific password, salt from server*/
 type Credentials = credentials.Credentials
 
 /*GetCreds retrieves `Credentials` from server*/

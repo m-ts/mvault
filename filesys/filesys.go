@@ -3,7 +3,6 @@ package filesys
 import (
 	"errors"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 )
@@ -46,14 +45,14 @@ func ReadFile(path string) ([]byte, error) {
 func WriteFile(data []byte, path string) error {
 	newFile, createErr := os.Create(path)
 	if createErr != nil {
-		log.Fatal(createErr)
+		return createErr
 	}
 
 	defer newFile.Close()
 
 	_, writeErr := newFile.Write(data)
 	if writeErr != nil {
-		log.Fatal(writeErr)
+		return writeErr
 	}
 
 	return nil
