@@ -8,6 +8,7 @@ import (
 	"mvault/filesys"
 	"mvault/interaction"
 	"mvault/network"
+	"strings"
 	"time"
 )
 
@@ -15,22 +16,28 @@ import (
 type Credentials = credentials.Credentials
 
 var path = flag.String("file", "", "path to the `file` to encrypt/decrypt")
-var debug = flag.String("debug", "", "path to the `file` to save logs")
+var user = flag.String("user", "", "user name")
 var local = flag.Bool("local", false, "do not interact with server")
 var help = flag.Bool("help", false, "show docs")
 var encr = flag.Bool("encrypt", false, "encrypt file")
 var decr = flag.Bool("decrypt", false, "decrypt file")
 
 func getSecrets(local bool) (Credentials, error) {
+	var cr Credentials
 	if local {
 		return interaction.GetSecrets()
 	}
-	return network.GetCreds("", "")
+	password, readErr := interaction.RetrieveSecret("Enter password (or leave empty): ")
+	if readErr != nil {
+		return cr, readErr
+	}
+	return network.GetCreds(*user, password)
 }
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
 	flag.BoolVar(local, "l", *local, "alias for `-local`")
+	flag.StringVar(user, "u", *user, "alias for `-user`")
 	flag.BoolVar(help, "h", *help, "alias for `-help`")
 	flag.BoolVar(encr, "e", *encr, "alias for `-encrypt`")
 	flag.BoolVar(decr, "d", *decr, "alias for `-decrypt`")
@@ -41,16 +48,46 @@ func main() {
 		return
 	}
 
-	if len(*path) < 1 || (!*encr && !*decr) || (*encr && *decr) {
+	if len(*path) < 1 || (!*encr && !*decr) || (*encr && *decr) || (len(*user) < 1 && !*local) {
 		interaction.Help("Check options or filepath")
+		return
 	}
 
 	var creds Credentials
 
 	creds, getErr := getSecrets(*local)
 	if getErr != nil {
-		interaction.Help(getErr.Error())
-		return
+		errortext := getErr.Error()
+		if strings.Contains(errortext, "401") {
+			interaction.Help("Wrong credentials. Retry later.")
+			return
+		}
+		if strings.Contains(errortext, "423") {
+			interaction.BanNotification()
+			return
+		}
+		if strings.Contains(errortext, "403") {
+			pwd, readErr := interaction.UpdatePassword()
+			if readErr != nil {
+				interaction.Help(readErr.Error())
+				return
+			}
+			updateErr := network.Register(*user, pwd)
+			if updateErr != nil {
+				interaction.Help(updateErr.Error())
+				return
+			}
+
+			var newErr error
+			creds, newErr = network.GetCreds(*user, pwd)
+			if newErr != nil {
+				interaction.Help(newErr.Error())
+				return
+			}
+		} else {
+			interaction.Help(errortext)
+			return
+		}
 	}
 
 	data, readErr := filesys.ReadFile(*path)

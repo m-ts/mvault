@@ -30,7 +30,8 @@ Options:
 -e, -encrypt` + "\t" + `Encode given file
 -file[=path]` + "\t" + `Recieve file path
 -h, -help` + "\t" + `Show docs
--l, -local` + "\t" + `Do not interact with server`
+-l, -local` + "\t" + `Do not interact with server
+-u, -user` + "\t" + `Define username`
 
 /*GetHelp returns help note*/
 func GetHelp() string {

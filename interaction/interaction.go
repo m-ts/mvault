@@ -14,7 +14,8 @@ type Credentials = credentials.Credentials
 
 /*ACTIVE INTERACTION*/
 
-func retrievesecret(intro string) (string, error) {
+/*RetrieveSecret asks user to write confidential info*/
+func RetrieveSecret(intro string) (string, error) {
 	fmt.Print(intro)
 	bytePassword, readErr := terminal.ReadPassword(int(syscall.Stdin))
 	if readErr != nil {
@@ -29,8 +30,8 @@ func retrievesecret(intro string) (string, error) {
 func GetSecrets() (Credentials, error) {
 	var creds Credentials
 
-	pwd, err := retrievesecret("Enter password: ")
-	pin, err := retrievesecret("Enter pin: ")
+	pwd, err := RetrieveSecret("Enter password: ")
+	pin, err := RetrieveSecret("Enter pin: ")
 	if err != nil {
 		return creds, err
 	}
@@ -39,6 +40,16 @@ func GetSecrets() (Credentials, error) {
 	creds.Salt = pin
 
 	return creds, nil
+}
+
+/*UpdatePassword updates user password*/
+func UpdatePassword() (string, error) {
+	fmt.Println("Your password has been reset or is not set yet.")
+	pwd, err := RetrieveSecret("Enter new password (min 6): ")
+	if err != nil {
+		return "", err
+	}
+	return pwd, nil
 }
 
 /*PASSIVE INTERACTION*/
@@ -51,4 +62,9 @@ func Help(intro string) {
 		return
 	}
 	fmt.Print(helpnote.GetHelp())
+}
+
+/*BanNotification notifies user of ban event*/
+func BanNotification() {
+	fmt.Println("We are deeply sorry to inform you, your account has been banned and you are no logner available to use Mvault (c) for your purposes.\nIf you find these events unfair or uncalled for, please, ensure you did not violated over terms of use agreement and enduser trust code. Consider visiting psychoanalyst to find out the root of the problem.\nBest wishes,\nMvault team")
 }
